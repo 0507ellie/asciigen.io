@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Art Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00d4ff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Matrix rain background */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border: 2px solid #00ff41;
+            padding: 20px;
+            background: rgba(0, 255, 65, 0.05);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff41;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #00ff41; }
+            to { text-shadow: 0 0 20px #00ff41, 0 0 30px #00ff41; }
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            border: 1px solid #00ff41;
+            background: rgba(0, 255, 65, 0.02);
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .panel h3 {
+            margin-bottom: 15px;
+            color: #00ff41;
+            font-size: 1.3em;
+            border-bottom: 1px solid #00ff41;
+            padding-bottom: 5px;
+        }
+
+        .canvas-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        #drawingCanvas {
+            border: 2px solid #00ff41;
+            background: #000;
+            cursor: crosshair;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            background: #00ff41;
+            color: #000;
+            box-shadow: 0 0 10px #00ff41;
+        }
+
+        .btn.active {
+            background: #00ff41;
+            color: #000;
+        }
+
+        select {
+            background: #000;
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .ascii-output {
+            background: #000;
+            border: 2px solid #00ff41;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1;
+            white-space: pre;
+            overflow: auto;
+            max-height: 400px;
+            min-height: 200px;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+
+        .tools {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .copy-btn {
+            background: #00ff41;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #00cc33;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            #drawingCanvas {
+                width: 100%;
+                height: 300px;
+            }
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 5px;
+            border-radius: 3px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .status.success {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-bg" id="matrixBg"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>◢ ASCII ART GENERATOR ◣</h1>
+            <div class="subtitle">DRAW • CONVERT • TERMINAL READY</div>
+            <div style="font-size: 0.9em; opacity: 0.7;">Click and drag to draw | Select tools | Generate ASCII art</div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <h3>▶ DRAWING CANVAS</h3>
+                <div class="canvas-container">
+                    <canvas id="drawingCanvas" width="400" height="300"></canvas>
+                </div>
+                
+                <div class="tools">
+                    <button class="btn active" id="penTool">PEN</button>
+                    <button class="btn" id="lineTool">LINE</button>
+                    <button class="btn" id="rectTool">RECTANGLE</button>
+                    <button class="btn" id="circleTool">CIRCLE</button>
+                    <button class="btn" id="eraserTool">ERASER</button>
+                </div>
+
+                <div class="controls">
+                    <button class="btn" id="clearBtn">CLEAR</button>
+                    <button class="btn" id="generateBtn">GENERATE ASCII</button>
+                    <select id="densitySelect">
+                        <option value="high">High Detail</option>
+                        <option value="medium" selected>Medium Detail</option>
+                        <option value="low">Low Detail</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>▶ ASCII OUTPUT</h3>
+                <div class="ascii-output" id="asciiOutput">// Draw something on the canvas
+// and click GENERATE ASCII
+//
+//  ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗     
+//  ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║     
+//     ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║     
+//     ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║██║██║╚██╗██║██╔══██║██║     
+//     ██║   ███████╗██║  ██║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║███████╗
+//     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
+//
+//                        READY TO CONVERT!
+</div>
+                <button class="copy-btn" id="copyBtn">COPY TO CLIPBOARD</button>
+                <div class="status" id="status" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let startX, startY;
+
+        // State management
+        let canvasHistory = [];
+        saveCanvasState();
+
+        // Tool selection
+        document.querySelectorAll('.tools .btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tools .btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentTool = e.target.id.replace('Tool', '');
+            });
+        });
+
+        // Canvas settings
+        ctx.strokeStyle = '#00ff41';
+        ctx.fillStyle = '#00ff41';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+
+        function saveCanvasState() {
+            canvasHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        // Drawing functions
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const pos = getMousePos(e);
+            startX = pos.x;
+            startY = pos.y;
+            
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                if (currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = 10;
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.lineWidth = 2;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            
+            const pos = getMousePos(e);
+            
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            const pos = getMousePos(e);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.lineWidth = 2;
+            
+            switch (currentTool) {
+                case 'line':
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+                    break;
+                    
+                case 'rect':
+                    ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+                    break;
+                    
+                case 'circle':
+                    const radius = Math.sqrt(Math.pow(pos.x - startX, 2) + Math.pow(pos.y - startY, 2));
+                    ctx.beginPath();
+                    ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    break;
+            }
+            
+            saveCanvasState();
+        });
+
+        // Clear canvas
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            saveCanvasState();
+        });
+
+        // ASCII conversion
+        document.getElementById('generateBtn').addEventListener('click', generateASCII);
+
+        function generateASCII() {
+            const density = document.getElementById('densitySelect').value;
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // ASCII characters from light to dark
+            const asciiChars = ' .\'`^",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$';
+            
+            // Determine step size based on density
+            let step;
+            switch (density) {
+                case 'high': step = 4; break;
+                case 'medium': step = 6; break;
+                case 'low': step = 8; break;
+            }
+            
+            let ascii = '';
+            
+            for (let y = 0; y < canvas.height; y += step) {
+                for (let x = 0; x < canvas.width; x += step) {
+                    const pixelIndex = (y * canvas.width + x) * 4;
+                    
+                    // Get RGBA values
+                    const r = imageData.data[pixelIndex];
+                    const g = imageData.data[pixelIndex + 1];
+                    const b = imageData.data[pixelIndex + 2];
+                    const a = imageData.data[pixelIndex + 3];
+                    
+                    // Calculate brightness (0-255)
+                    const brightness = (r + g + b) / 3 * (a / 255);
+                    
+                    // Map brightness to ASCII character
+                    const charIndex = Math.floor((brightness / 255) * (asciiChars.length - 1));
+                    ascii += asciiChars[charIndex];
+                }
+                ascii += '\n';
+            }
+            
+            // Add terminal-style header
+            const output = `// Generated ASCII Art - ${new Date().toLocaleString()}
+// Density: ${density} | Canvas: ${canvas.width}x${canvas.height}
+// =====================================================
+${ascii}
+// =====================================================
+// Copy this art to your terminal or code comments!`;
+            
+            document.getElementById('asciiOutput').textContent = output;
+        }
+
+        // Copy to clipboard
+        document.getElementById('copyBtn').addEventListener('click', async () => {
+            const output = document.getElementById('asciiOutput').textContent;
+            try {
+                await navigator.clipboard.writeText(output);
+                showStatus('ASCII art copied to clipboard!', 'success');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = output;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showStatus('ASCII art copied to clipboard!', 'success');
+            }
+        });
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        // Matrix rain effect
+        function createMatrixRain() {
+            const matrixBg = document.getElementById('matrixBg');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            matrixBg.appendChild(canvas);
+            
+            const matrix = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン01";
+            const drops = [];
+            const fontSize = 14;
+            const columns = canvas.width / fontSize;
+            
+            for (let x = 0; x < columns; x++) {
+                drops[x] = Math.random() * canvas.height;
+            }
+            
+            function draw() {
+                ctx.fillStyle = 'rgba(13, 17, 23, 0.04)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#00ff41';
+                ctx.font = fontSize + 'px Courier New';
+                
+                for (let i = 0; i < drops.length; i++) {
+                    const text = matrix[Math.floor(Math.random() * matrix.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                    
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+            
+            setInterval(draw, 50);
+        }
+        
+        // Initialize matrix effect
+        createMatrixRain();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const matrixBg = document.getElementById('matrixBg');
+            matrixBg.innerHTML = '';
+            createMatrixRain();
+        });
+        
+        // Touch support for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+    </script>
+</body>
+</html>
